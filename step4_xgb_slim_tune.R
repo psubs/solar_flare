@@ -1,6 +1,7 @@
 library(parallel)
 library(xgboost)
 
+source("make_sumdt_window_func.R")
 parcores<-as.numeric(args[1])
 
 set.seed(11)
@@ -23,7 +24,7 @@ grpvars <- c("id", "fid", "fold", "grp", "class_label")
 
 
 cts<-seq(0.05,0.5,0.05)
-out[,.(cts, f1=sapply(cts, function(x) f1(flare, obs,cut=x))),by=tunepars]
+outimp[,.(cts, f1=sapply(cts, function(x) f1(flare, obs,cut=x))),by=tunepars]
 
 
 outimp[,imp:=Gain/sum(Gain),by=c("fold", tunepars)]
