@@ -8,3 +8,12 @@
 5. plotting and analysis scripts
 6. Rmarkdown readme with simple examples of function (we don't want to be discriminated because we are R users)
 
+
+data description:
+http://dmlab.cs.gsu.edu/bigdata19/flare-comp/Data.html
+
+60 observations, 12 minutes apart => 12hr Multivariate time-slice
+
+We were predicting a M- or X- Class solar flare (the class comes up in some other papers)
+The non-flare group could have been either B- , C-, or no flare
+
