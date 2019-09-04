@@ -9,6 +9,22 @@ f1<-function(pred, label,cut=0.5){
         return(2*prec*rec / (prec + rec))
       }
 
+prec<-function(pred, label,cut=0.5){
+        tp<-sum(label* (pred > cut))
+        fp<-sum((1-label)* (pred > cut))
+        fn<-sum(label* (pred <= cut))
+        prec<-tp / (tp + fp)
+        return(prec)
+      }
+
+rec<-function(pred, label,cut=0.5){
+        tp<-sum(label* (pred > cut))
+        fp<-sum((1-label)* (pred > cut))
+        fn<-sum(label* (pred <= cut))
+        rec<-tp / (tp + fn)
+        return(rec)
+      }
+
 f1_5 <- function(preds, dtrain) {
 	labels <- getinfo(dtrain, "label")
 #	preds<-1/(1 + exp(-preds)) 
