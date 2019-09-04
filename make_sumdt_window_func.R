@@ -1,4 +1,33 @@
 
+
+f1<-function(pred, label,cut=0.5){
+        tp<-sum(label* (pred > cut))
+        fp<-sum((1-label)* (pred > cut))
+        fn<-sum(label* (pred <= cut))
+        prec<-tp / (tp + fp)
+        rec<-tp / (tp + fn)
+        return(2*prec*rec / (prec + rec))
+      }
+
+f1_5 <- function(preds, dtrain) {
+	labels <- getinfo(dtrain, "label")
+#	preds<-1/(1 + exp(-preds)) 
+	tp<-sum(labels * 
+		    (preds > 0.5)) 
+	fp<-sum((1-labels) * 
+		    (preds > 0.5)) 
+	fn<-sum(labels * 
+		    (preds <= 0.5)) 
+        prec<-tp / (tp + fp)
+        rec<-tp / (tp + fn)
+        f1<-2*prec*rec / (prec + rec)	
+        return(list(metric = c("f1-score"), 
+		    value = c(f1)))
+}
+
+
+
+
 make_sumdt<-function(dat, grpvars, allcovs){
   d<-copy(dat)
   
