@@ -17,6 +17,18 @@ prec<-function(pred, label,cut=0.5){
         return(prec)
       }
 
+fpr<-function(pred, label,cut=0.5){
+        fp<-sum((1-label)* (pred > cut))
+        tn<-sum((1-label)* (pred <= cut))
+        fpr<-fp / (fp + tn)
+        return(fpr)
+      }
+
+tss<-function(pred, label,cut=0.5){
+        tss<-rec(pred, label, cut) - fpr(pred, label, cut)
+        return(tss)
+      }
+
 rec<-function(pred, label,cut=0.5){
         tp<-sum(label* (pred > cut))
         fp<-sum((1-label)* (pred > cut))
