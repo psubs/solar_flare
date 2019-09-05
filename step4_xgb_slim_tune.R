@@ -1,7 +1,7 @@
 library(parallel)
 library(xgboost)
 
-source("make_sumdt_window_func.R")
+source("solar_flare/make_sumdt_window_func.R")
 parcores<-as.numeric(args[1])
 
 set.seed(11)
@@ -19,12 +19,13 @@ tunepars<-names(tg)
 outimp<-fread("results/fullmodel_window.imp.tsv")
 outimp[,imp:=Gain/sum(Gain),by=c("fold", tunepars)]
 csimp<-outimp[,.(mean_imp=mean(imp)),by=.(Feature)][order(-mean_imp)]
-usevars_window<-csimp[mean_imp >=0.001,Feature]
+usevars_window<-csimp[mean_imp >=.001,Feature]
 grpvars <- c("id", "fid", "fold", "grp", "class_label")
 
 
+out<-fread("results/fullmodel_window.rprt.tsv")
 cts<-seq(0.05,0.5,0.05)
-outimp[,.(cts, f1=sapply(cts, function(x) f1(flare, obs,cut=x))),by=tunepars]
+out[,.(cts, f1=sapply(cts, function(x) f1(flare, obs,cut=x))),by=tunepars]
 
 
 outimp[,imp:=Gain/sum(Gain),by=c("fold", tunepars)]
@@ -32,16 +33,25 @@ csimp<-outimp[,.(mean_imp=mean(imp)),by=.(Feature)][order(-mean_imp)]
 usevars_window<-csimp[mean_imp >=0.001,Feature]
 
 
-datafiles<-paste0("data/ssdat_window_", )
-for(i in 1:369){
-  di<-fread(datafiles[i], select=c(grpvars, usevars))
-  if(i==1){
-  d<-di
-  } else {
-  d<-rbindlist(list(d,di))
-  }
-}
+#datafiles<-paste0("data/ssdat_window_", 1:369)
+#for(i in 1:369){
+#  di<-fread(datafiles[i], select=c(grpvars, usevars_window))
+#  if(i==1){
+#  d<-di
+#  } else {
+#  d<-rbindlist(list(d,di))
+#  }
+# print(i)
+#}
 
+d<-fread("window_select_data.tsv")
+d[,class_label:=factor(class_label, levels=c("0", "1"), 
+	labels=c("no_flare", "big_flare"))]
+
+cnvrt_num<-melt(d[,lapply(.SD, class)][,id:="id"],
+     id.vars="id",variable.factor=F)[value=="character"][!variable %in% grpvars,variable]
+
+d[,paste(cnvrt_num):=lapply(.SD, as.numeric),.SDcols=cnvrt_num]
 
 
 #### 
@@ -58,7 +68,7 @@ trainset_select<-d[fold!=4,c(grpvars, usevars_window),with=F]
 testset_select<-d[fold==4,c(grpvars, usevars_window),with=F]
 
 
-for(j in 2:nrow(tg)){
+for(j in 1:nrow(tg)){
   resj<-list()
   impj<-list()
   for(i in 1:3){
@@ -105,7 +115,7 @@ fwrite(imp, file=paste0("window_imp_select.", j, ".tsv"),sep="\t")
 outj<-merge(res,tgj,by="ktmp",all=TRUE,allow.cartesian=TRUE)[,ktmp:=NULL]
 outimpj<-merge(tgj,imp,by="ktmp",all=TRUE,allow.cartesian=TRUE)[,ktmp:=NULL]
 
-  if(j==2){
+  if(j==1){
    out<-outj
    outimp<-outimpj 
   }else{
@@ -115,6 +125,16 @@ outimpj<-merge(tgj,imp,by="ktmp",all=TRUE,allow.cartesian=TRUE)[,ktmp:=NULL]
 
 }
 
+for(i in 1:nrow(tg)){
+  outi<-fread(paste0("window_res_select.", i, ".tsv"))
+  outi<-merge(outi, tg[i][,ktmp:=1],by="ktmp")
+  if(i==1){
+  out<-outi
+  } else {
+  out<-rbindlist(list(out,outi))
+  }
+  print(i)
+}
 
 #####
 ###
@@ -124,6 +144,9 @@ outimpj<-merge(tgj,imp,by="ktmp",all=TRUE,allow.cartesian=TRUE)[,ktmp:=NULL]
 
 oob_setting<-out[,.(f1=f1(flare,obs,0.35)),
 		 	 by=c(tunepars)][order(-f1)][1]
+
+tgind<-merge(tg[1==1][,tgind:=1:.N], oob_setting)[,tgind]
+
 tstv<-unlist(oob_setting[1,-c("f1"),with=F])
 tstl<-lapply(1:length(tstv), function(i) unname(tstv[i]))
 names(tstl)<-names(tstv)
@@ -146,7 +169,13 @@ tstl$objective="binary:logistic"
 submit_dt<- data.table(Id = testset_select[,id],
                   ClassLabel = as.numeric(predict(model_f, dtestf) > 0.35),
 		  flare=predict(model_f, dtestf))
-fwrite(submit_dt, file=paste0("oobs/modfull_window.csv"))
-fwrite(submit_dt[,.(Id,ClassLabel=as.numeric(flare > 0.35))], file=paste0("oobs/modfull_window_submit.csv"))
+xgb.save(model_f, fname=paste0("full_training.", tgind, ".model"))
+
+fwrite(submit_dt, file=paste0("oobs/modfull_window_posttune.csv"))
+fwrite(submit_dt[,.(Id,ClassLabel=as.numeric(flare > 0.35))], 
+       file=paste0("oobs/modfull_window_submit_posttune.csv"))
+
+
+
 
 
