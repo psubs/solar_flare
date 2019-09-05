@@ -29,6 +29,14 @@ tss<-function(pred, label,cut=0.5){
         return(tss)
       }
 
+logit<-function(x){
+ return(log(x / (1-x)))
+}
+
+invlogit<-function(x){
+ return(exp(x) / (1 + exp(x)))
+}
+
 rec<-function(pred, label,cut=0.5){
         tp<-sum(label* (pred > cut))
         fp<-sum((1-label)* (pred > cut))
