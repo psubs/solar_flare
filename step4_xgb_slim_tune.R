@@ -3,6 +3,7 @@ args=commandArgs(trailingOnly=T)
 library(parallel)
 library(xgboost)
 
+setwd("/gpfs/group/asb17/default/BD2019_solar/dan")
 source("solar_flare/make_sumdt_window_func.R")
 parcores<-as.numeric(args[1])
 
