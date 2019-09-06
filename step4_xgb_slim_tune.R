@@ -1,3 +1,5 @@
+
+args=commandArgs(trailingOnly=T)
 library(parallel)
 library(xgboost)
 
