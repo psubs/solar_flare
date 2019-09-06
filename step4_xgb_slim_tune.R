@@ -70,7 +70,7 @@ trainset_select<-d[fold!=4,c(grpvars, usevars_window),with=F]
 testset_select<-d[fold==4,c(grpvars, usevars_window),with=F]
 
 
-for(j in 1:nrow(tg)){
+for(j in 19:nrow(tg)){
   set.seed(11)
   resj<-list()
   impj<-list()
