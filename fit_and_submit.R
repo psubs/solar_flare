@@ -1,5 +1,5 @@
 
-
+args=commandArgs(trailingOnly=T)
 library(parallel)
 library(xgboost)
 
@@ -86,7 +86,6 @@ xgb.save(model_f, fname=paste0("modfull_window_pt.",tgind,".model"))
 submit_dt<- data.table(Id = testset_select[,id],
                   ClassLabel = as.numeric(predict(model_f, dtestf) > 0.35),
 		  flare=predict(model_f, dtestf))
-xgb.save(model_f, fname=paste0("full_training.", tgind, ".model"))
 
 fwrite(submit_dt, file=paste0("oobs/modfull_window_pt.",tgind,".csv"))
 fwrite(submit_dt[,.(Id,ClassLabel=as.numeric(flare > 0.35))], 
