@@ -3,6 +3,7 @@
 library(parallel)
 library(xgboost)
 
+setwd("/gpfs/group/asb17/default/BD2019_solar/dan/")
 source("solar_flare/make_sumdt_window_func.R")
 #args<-c("2", "2")
 parcores<-as.numeric(args[1])
