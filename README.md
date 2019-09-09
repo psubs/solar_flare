@@ -17,3 +17,5 @@ http://dmlab.cs.gsu.edu/bigdata19/flare-comp/Data.html
 We were predicting a M- or X- Class solar flare (the class comes up in some other papers)
 The non-flare group could have been either B- , C-, or no flare
 
+
+latex link: https://www.overleaf.com/8674225371vfbzgyfkgysw
