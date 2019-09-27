@@ -29,6 +29,22 @@ tss<-function(pred, label,cut=0.5){
         return(tss)
       }
 
+hss1<-function(pred, label, cut=0.5){
+  hss1<-rec(pred, label, cut) *(2 - 1/prec(pred, label, cut))
+  return(hss1) 
+ }
+
+gs<-function(pred, label, cut=0.5){ 
+ p<-sum(label)
+ n<-sum(1-label)
+ fp<-sum((1-label)* (pred > cut))
+ tn<-sum((1-label)* (pred <= cut))
+ tp<-sum((label)* (pred > cut))
+ fn<-sum(label*(pred <=cut))
+ ch<-((tp + fp) * (tp + fn)) / (p + n) 
+ gs<-(tp - ch) / (tp + fp + fn - ch)
+ return(gs)
+}
 logit<-function(x){
  return(log(x / (1-x)))
 }

@@ -4,6 +4,8 @@ library(ggplot2)
 library(data.table)
 library(stringr)
 library(xgboost)
+library(parallelDist)
+library(stringr)
 ## data read-in ##
 
 tg<-CJ(max_depth=c(2,4,6),
@@ -36,8 +38,6 @@ trainset_select<-d[fold!=4,c(grpvars, usevars_window),with=F]
 testset_select<-d[fold==4,c(grpvars, usevars_window),with=F]
 
 
-
-
 tg<-CJ(max_depth=c(2,4,8),
 	subsample=0.5,
 	min_child_weight=1,
@@ -61,9 +61,10 @@ for(i in 1:nrow(tg)){
 f1sum<-out[,.(tgind=unique(tgind),
 	      f1=f1(flare,obs,0.35),
 	      tss=tss(flare, obs, 0.35),
+	      gs=gs(flare, obs, 0.35),
 	      prec=prec(flare, obs, 0.35),
 	      rec=rec(flare, obs, 0.35)),
-		 	 by=c(tunepars)][order(-f1)]
+		 	 by=c(tunepars)]#[order(-f1)]
 
 
 tgbst<-f1sum[max_depth < 8][1,tgind]
@@ -118,11 +119,157 @@ tsshap<-data.table(predict(mod, newdata=dtest,approxcontrib=TRUE,predcontrib=TRU
 tsout<-fread("oobs/modfull_window_pt.14.csv")
 fwrite(cbind(tsout, tsshap),file="ieee/testpred_shap.tsv", sep="\t")
 
-cvshap<-fread("cvshap.tsv")
-outf<-fread("cvout.tsv")
+cvshap<-fread("ieee/cvshap.tsv")
+outf<-fread("ieee/cvout.tsv")
 shapcols<-setdiff(names(cvshap),c(names(outf), "lev", "BIAS"))
 cvcols<-setdiff(names(cvshap), c(shapcols))
 
+
+#library(parallelDist)
+library(cluster)
+library(SHAPforxgboost)
+tstshap<-fread("ieee/testpred_shap.tsv")
+plt_tst<-tstshap[order(flare)][seq(1,.N,18)]#[,.N] # 15
+plt_cv<-cvshap[order(flare)][seq(1,.N,20)]#[,.N]
+fwrite(plt_cv, file="ieee/plt_subset_shapcv.tsv", sep="\t")
+fwrite(plt_tst, file="ieee/plt_subset_shaptst.tsv", sep="\t")
+
+plt_cv<-fread("plt_subset_shapcv.tsv")
+plt_tst<-fread("plt_subset_shaptst.tsv")
+cvcols<-c(names(plt_cv)[1:7], "BIAS", "lev")
+shapcols<-setdiff(names(plt_cv), cvcols)
+global_shap<-function(shapdt, shapcols){
+  global<-melt(shapdt[,lapply(.SD, function(x) mean(abs(x))),.SDcols=shapcols][,id:="var"], 
+		value.name="global_shap",
+		id.vars="id")[,id:=NULL][order(-global_shap)]
+  return(global)
+}
+allcovs<-fread("allcovsbase.tsv")[,unlist(covs)]
+pat<-paste0(allcovs,collapse="|")
+
+decomp<-function(dd){
+  d<-copy(dd)
+  d[,base:=str_match(variable, pat)[,1]]
+  d[,window:=tstrsplit(variable, base)[[2]]]
+  d[,stat:=tstrsplit(window, "t10")[[1]]]
+  d[,window:=gsub("^.*t10_", "", window)]
+  d[,stat:=gsub("^_|_$", "", stat)]
+  return(d)
+}
+
+std1 <- function(x){
+   return ((x - min(x, na.rm = T))/(max(x, na.rm = T) - min(x, na.rm = T)))
+}
+
+gcv<-global_shap(plt_cv, shapcols)
+gtst<-global_shap(plt_tst, shapcols)
+
+gcv<-decomp(gcv)[,rnk:=1:.N]
+gtst<-decomp(gtst)[,rnk:=1:.N]
+
+gcv[,mean(global_shap),by=base][order(-V1)]
+
+pltcols<-intersect(shapcols,gcv[1:20,variable])
+
+gcvl<-melt(plt_cv[,c(pltcols, "flare", "fid","obs"),with=F],
+           measure.vars=pltcols,value.name="shap")
+
+gcvl[,stdshap:=std1(shap),by="variable"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+cvshap[order(flare)]
+calls<-cvshap[flare > 0.35]
+calls<-calls[order(flare)][seq(1,.N,5)]
+#callsc<-calls[, lapply(.SD, function(x) c(scale(x))),
+#	     .SDcols=shapcols]
+#calls<-cbind(calls[,cvcols,with=F], callsc)
+#bigd<-parDist(as.matrix(calls[,shapcols,with=F]))
+bigd<-as.matrix(dist(as.matrix(calls[,shapcols,with=F])))
+bigd<-cbind(calls[,cvcols,with=F],as.data.table(bigd))
+colnames(bigd)[(length(cvcols) + 1):ncol(bigd)]<-bigd[,fid]
+
+#fwrite(bigd, file="ieee/distance_matrix_selected_calls.tsv", sep="\t") 
+#bigd<-fread("ieee/distance_matrix_selected_calls.tsv")
+
+#hc1<-hclust(as.dist(bigd[,-c(cvcols),with=F]), 
+#	    method="complete")
+#
+#save(hc1, "hc1.RData")
+#load("hc1.RData")
+#plot(hc1)
+rect.hclust(hc1,k=10)
+kcl<-cutree(hc1, k=3)
+ss<-merge(cvshap, data.table(fid=names(kcl), clust=kcl), by="fid",sort=F)
+ssm<-ss[,lapply(.SD, mean),by=.(clust),.SDcols=shapcols]
+msh<-melt(ssm, id.vars="clust",value.name="shap")
+msh[,diff:=max(shap) - min(shap),by=variable]
+msh<-msh[order(-diff,-shap)]
+dcast(, variable~clust, value.var="shap")
+tmp<-dcast(msh, variable~clust,value.var="shap")
+setnames(tmp, old=paste0(1:3), new=paste0("c_", 1:3))
+tmp[,diff12:=c_1 - c_2]
+tmp[,diff3_12:=c_3 - (c_2 + c_1)/2]
+tmp[order(-abs(diff3_12)),rnk3_12:=1:.N]
+tmp[order(-abs(diff12)),rnk12:=1:.N]
+
+
+bigd[fid %in% bigd[clust==1,fid], 
+ss[clust==3,ss[clust==3,fid],with=F]
+subm<-as.matrix(ss[clust==3,ss[clust==3,fid],with=F])
+rownames(subm)<-colnames(subm)
+isSymmetric(subm)
+sum(subm[upper.tri(subm)])
+for(i in 1:10){
+	for(j in 1:10){
+ if(subm[i,j] !=subm[j,i]) print(i)
+	}
+}
+
+
+chk<-calls[,shapcols,with=F]
+wss <- function(d) {
+  sum(scale(d, scale = FALSE)^2)
+}
+
+wrap <- function(i, hc, x) {
+  cl <- cutree(hc, i)
+  spl <- split(x, cl)
+  wss <- sum(sapply(spl, wss))
+  wss
+}
+
+1 - (sapply(1:10, wrap, hc=hc1, x=chk)) / wrap(1, hc1, chk)
+
+
+
+
+
+
+
+
+res1<-agnes(as.dist(bigd[,-cvcols,with=F]),method="complete")
+m <- c( "average", "single", "complete", "ward")
+names(m) <- c( "average", "single", "complete", "ward")
+res<-sapply(m, function(x) agnes(as.dist(bigd[,-cvcols,with=F]),method=x))
+for(i in 1:length(m)){
+  
+
+	
+}
 
 longd<-melt(cvshap, id.vars=cvcols,value.name="shap")
 imp<-longd[,.(imp=mean(abs(shap))),by=variable][order(-imp)][,rnk:=1:.N]

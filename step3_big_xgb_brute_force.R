@@ -21,7 +21,7 @@ grpvars <- c("id", "fid", "fold", "grp", "class_label")
 
 
 ### read in data ###
-datafiles<-paste0("data/ssdat_window_", )
+datafiles<-paste0("data/ssdat_window_", 1:369)
 for(i in 1:369){
   di<-fread(datafiles[i])
   if(i==1){

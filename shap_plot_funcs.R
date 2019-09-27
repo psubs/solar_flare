@@ -6,15 +6,44 @@
 #cls<-cls2<-c("#FFCC33", "#6600CC")
 #display.brewer.all(colorblindFriendly=T)
 #cls<-brewer.pal(12,"Paired")[10:11]
-me.shap.plot.summary <- function(data_long,
+
+
+#dat=plotd;
+#shap_name="value";
+#variable_name="variable";
+#global_shap_name="mean_value";
+#cols=NULL;
+#x_bound = NULL;
+#qval=TRUE;
+#dilute = FALSE; 
+#scientific = FALSE;
+#my_format = NULL
+#
+#
+#dat=plotdb;
+#cols=cls;
+#variable_name="base";
+#shap_name="base_shap_id"; 
+#global_shap_name="global_base_shap";
+#show_color=F
+
+
+me.shap.plot.summary <- function(dat,
+				 variable_name="variable",
                                  shap_name="value",
+				 global_shap_name="mean_value",
+				 show_color=TRUE,
                                  cols=NULL,
                                  x_bound = NULL,
 			         qval=TRUE,
                                  dilute = FALSE, 
 				 scientific = FALSE,
                                  my_format = NULL){
+  data_long<-copy(dat)
   setnames(data_long, old=shap_name, new="shap_name_tmp") 
+  setnames(data_long, old=global_shap_name, new="global_name_tmp") 
+  if(variable_name!="variable") setnames(data_long, old=variable_name, new="variable")
+
   if(missing(cols)) cols<-c("#FFCC33", "#6600CC")
   if (scientific){label_format = "%.1e"} else {label_format = "%.3f"}
   if (!is.null(my_format)) label_format <- my_format
@@ -32,58 +61,102 @@ me.shap.plot.summary <- function(data_long,
   }
 
   x_bound <- if (is.null(x_bound)) max(abs(data_long$shap_name_tmp))*1.1 else as.numeric(abs(x_bound))
-  plot1 <- ggplot(data = data_long)+
-    coord_flip(ylim = c(-x_bound, x_bound)) +
-    # sina plot:
-    ggforce::geom_sina(aes(x = variable, y = shap_name_tmp, color = if(qval) qvalue else stdfvalue),
-              method = "counts", maxwidth = 0.7, alpha = 0.7) +
-    # print the mean absolute value:
-    geom_text(data = unique(data_long[, c("variable", "mean_value")]),
-              aes(x = variable, y=-Inf, label = sprintf(label_format, mean_value)),
-              size = 3, alpha = 0.7,
-              hjust = -0.2,
-              fontface = "bold") + # bold
-    # # add a "SHAP" bar notation
-    # annotate("text", x = -Inf, y = -Inf, vjust = -0.2, hjust = 0, size = 3,
-    #          label = expression(group("|", bar(SHAP), "|"))) +
-    #scale_color_gradient(low=cls[1], high=cls[2],
-    #                     breaks=c(0,1), labels=c(" Low","High "),
-    #                     guide = guide_colorbar(barwidth = 12, barheight = 0.3)) +
-    #scale_color_distiller(palette="Spectral",
-    #                     guide = guide_colorbar(barwidth = 12, barheight = 0.3)) +
-    scale_color_gradientn(colours=cols,
-                         breaks=c(0,.2,.8,1), #labels=c("Low","High "),
-                         labels=c("0", "0.2", "0.8", "1"),
-                         guide = guide_colorbar(barwidth = 12, barheight = 0.3)) +
-    theme_bw() +
-    theme(axis.line.y = element_blank(),
-          axis.ticks.y = element_blank(), # remove axis line
-          legend.position="bottom",
-          legend.title=element_text(size=10),
-          legend.text=element_text(size=8),
-          axis.title.x= element_text(size = 10)) +
-    geom_hline(yintercept = 0) + # the vertical line
-    # reverse the order of features, from high to low
-    # also relabel the feature using `label.feature`
-    scale_x_discrete(limits = rev(levels(data_long$variable)),
-                     labels =SHAPforxgboost:::label.feature(rev(levels(data_long$variable))))+
-    labs(y = "SHAP value (impact on model output)", x = "", color = if(qval) "Quantile Value\n of Feature" else "Feature value  ")
-  setnames(data_long, new=shap_name, old="shap_name_tmp") 
+
+  if(show_color){
+  
+    plot1 <- ggplot(data = data_long)+
+      coord_flip(ylim = c(-x_bound, x_bound)) +
+      # sina plot:
+      ggforce::geom_sina(aes(x = variable, 
+			     y = shap_name_tmp, 
+			     color = if(qval) qvalue else stdfvalue),
+                method = "counts", maxwidth = 0.7, alpha = 0.7) +
+      # print the mean absolute value:
+      geom_text(data = unique(data_long[, c("variable", "global_name_tmp")]),
+                aes(x = variable, y=-Inf, label = sprintf(label_format, global_name_tmp)),
+                size = 3, alpha = 0.7,
+                hjust = -0.2,
+                fontface = "bold") + # bold
+      # # add a "SHAP" bar notation
+      # annotate("text", x = -Inf, y = -Inf, vjust = -0.2, hjust = 0, size = 3,
+      #          label = expression(group("|", bar(SHAP), "|"))) +
+      #scale_color_gradient(low=cls[1], high=cls[2],
+      #                     breaks=c(0,1), labels=c(" Low","High "),
+      #                     guide = guide_colorbar(barwidth = 12, barheight = 0.3)) +
+      #scale_color_distiller(palette="Spectral",
+      #                     guide = guide_colorbar(barwidth = 12, barheight = 0.3)) +
+      scale_color_gradientn(colours=cols,
+                           breaks=c(0,.2,.8,1), #labels=c("Low","High "),
+                           labels=c("0", "0.2", "0.8", "1"),
+                           guide = guide_colorbar(barwidth = 12, barheight = 0.3)) +
+      theme_bw() +
+      theme(axis.line.y = element_blank(),
+            axis.ticks.y = element_blank(), # remove axis line
+            legend.position="bottom",
+            legend.title=element_text(size=10),
+            legend.text=element_text(size=8),
+            axis.title.x= element_text(size = 10)) +
+      geom_hline(yintercept = 0) + # the vertical line
+      # reverse the order of features, from high to low
+      # also relabel the feature using `label.feature`
+      scale_x_discrete(limits = rev(levels(data_long$variable)),
+                       labels =SHAPforxgboost:::label.feature(rev(levels(data_long$variable))))+
+      labs(y = "SHAP value (impact on log-odds of MSF)", x = "", color = if(qval) "Quantile Value\n of Feature" else "Feature value  ")
+    
+  
+  } else {
+  
+    plot1 <- ggplot(data = data_long)+
+      coord_flip(ylim = c(-x_bound, x_bound)) +
+      # sina plot:
+      ggforce::geom_sina(aes(x = variable, 
+			     y = shap_name_tmp), 
+			     method = "counts", 
+			     maxwidth = 0.7, 
+			     alpha = 0.2,
+			     colour="#D95F02") +
+      # print the mean absolute value:
+      geom_text(data = unique(data_long[, c("variable", "global_name_tmp")]),
+                aes(x = variable, y=-Inf, label = sprintf(label_format, global_name_tmp)),
+                size = 3, alpha = 0.7,
+                hjust = -0.2,
+                fontface = "bold") + # bold
+      theme_bw() +
+      theme(axis.line.y = element_blank(),
+            axis.ticks.y = element_blank(), # remove axis line
+            legend.position="bottom",
+            legend.title=element_text(size=10),
+            legend.text=element_text(size=8),
+            axis.title.x= element_text(size = 10)) +
+      geom_hline(yintercept = 0) + # the vertical line
+      # reverse the order of features, from high to low
+      # also relabel the feature using `label.feature`
+      scale_x_discrete(limits = rev(levels(data_long$variable)),
+                       labels =SHAPforxgboost:::label.feature(rev(levels(data_long$variable))))+
+      labs(y = "SHAP value (impact on log-odds of MSF)", x = "")
+    
+  
+  
+  
+  
+  
+  }
+  #setnames(data_long, new=shap_name, old="shap_name_tmp") 
   return(plot1)
 }
 
-data_long=copy(plotd); 
-
-
-x="epsx_min_t10_5"; 
-y = NULL;
-y<-x
-color_feature = "shrgt45_min_t10_5"; 
-data_int = NULL;
-
-x<-"r_value_max_t10_5"
-color_feature<-"epsx_min_t10_5"
-me.dep.plot(plotd,x,color_feature,quantx=F)
+#data_long=copy(plotd); 
+#
+#
+#x="epsx_min_t10_5"; 
+#y = NULL;
+#y<-x
+#color_feature = "shrgt45_min_t10_5"; 
+#data_int = NULL;
+#
+#x<-"r_value_max_t10_5"
+#color_feature<-"epsx_min_t10_5"
+#me.dep.plot(plotd,x,color_feature,quantx=F)
 me.dep.plot<-function(dat, x, color_feature,quantx=T){
   data_long<-copy(dat)
   x<-as.character(x)
@@ -100,7 +173,7 @@ me.dep.plot<-function(dat, x, color_feature,quantx=T){
   
   
   dw<-data_long[variable %in% c(y, x, color_feature)]
-  dw<-dcast(dw, fid ~ variable, value.var=cast_vars)
+  dw<-dcast(dw, fid + fold ~ variable, value.var=cast_vars)
   pvars<-unique(unlist(sapply(cast_vars, 
   			function(i) paste0(i, "_", c(x, y, color_feature)))))
   setnames(dw, old=paste0("rfvalue_", color_feature), new=paste0("rfvalue_cf"))
@@ -150,18 +223,19 @@ me.dep.plot<-function(dat, x, color_feature,quantx=T){
   }
   return(p)
 }
-me.dep2.plot(plotd, 
-	     x="totpot_max_t10_5", 
-	     color_feature="epsx_min_t10_5", 
-	     shape_feature="r_value_min_t10_5")
+#me.dep2.plot(plotd, 
+#	     x="totpot_max_t10_5", 
+#	     color_feature="epsx_min_t10_5", 
+#	     shape_feature="r_value_min_t10_5")
+#
+#x="totpot_max_t10_5"; 
+#color_feature="epsx_min_t10_5"; 
+#shape_feature="r_value_max_t10_5"
+#shape_feature="absnjzh_sd_t10_5"
+#me.dep2.plot(plotd, x, color_feature, shape_feature)
 
-x="totpot_max_t10_5"; 
-color_feature="epsx_min_t10_5"; 
-shape_feature="r_value_max_t10_5"
-shape_feature="absnjzh_sd_t10_5"
-me.dep2.plot(plotd, x, color_feature, shape_feature)
+me.dep2.plot<-function(dat, x, color_feature,shape_feature,quantx=T,wrapfold=F){
 
-me.dep2.plot<-function(dat, x, color_feature,shape_feature,quantx=T){
   data_long<-copy(dat)
   x<-as.character(x)
   color_feature<-as.character(color_feature)
@@ -178,7 +252,7 @@ me.dep2.plot<-function(dat, x, color_feature,shape_feature,quantx=T){
   
   
   dw<-data_long[variable %in% c(y, x, color_feature,shape_feature)]
-  dw<-dcast(dw, fid ~ variable, value.var=cast_vars)
+  dw<-dcast(dw, fid + fold ~ variable, value.var=cast_vars)
   pvars<-unique(unlist(sapply(cast_vars, 
   			function(i) paste0(i, "_", c(x, y, color_feature)))))
   setnames(dw, old=paste0("rfvalue_", color_feature), new=paste0("rfvalue_cf"))
@@ -251,11 +325,14 @@ me.dep2.plot<-function(dat, x, color_feature,shape_feature,quantx=T){
 	       title=paste0("Dependence plot: \n", x, "vs. \n", color_feature)) +
           theme(plot.title=element_text(hjust=0.5))
   }
+  if(wrapfold){
+    p<-p + facet_wrap(~fold) 
+  }
   return(p)
 }
 
                                     #guide = guide_colorbar(barwidth = 12, barheight = 0.3)) 
-shap.plot.dependence(plotd, x)
+#shap.plot.dependence(plotd, x)
 me.shap.plot.dependence<-
 function (data_long, x, y = NULL, color_feature = NULL, data_int = NULL, 
     dilute = FALSE, smooth = TRUE, size0 = NULL, add_hist = FALSE) 

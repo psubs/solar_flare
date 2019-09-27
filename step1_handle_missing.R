@@ -1,4 +1,5 @@
 library(zoo)
+library(xtable)
 
 setwd("/gpfs/group/asb17/default/BD2019_solar/data")
 for(i in 1:4){
@@ -58,7 +59,23 @@ d<-dd$d
 missdf<-dd$missdf
 rm(dd)
 
+
+missdt<-rbindlist(missdf)
+missdt<-dcast(missdt, fold + fid + id + time ~ var, value.var="val")
+
+missdt<-merge(missdt, d[,c(keys, "time", "class_label"),with=F],by=c(keys, "time"))
+missdt[,.(sum(class_label), mean(class_label),uniqueN(fid)),by=fold]
+print(xtable(rbindlist(list(
+       d[,.(sum(class_label), as.character(round(mean(class_label,na.rm=T),3)), uniqueN(fid)),by=fold],
+       d[,.(fold="overall", sum(class_label,na.rm=T), as.character(round(mean(class_label,na.rm=T),3)), uniqueN(fid))]
+))),include.rownames=F)
+
+
+
 d[,lapply(.SD, function(x) mean(is.na(x)))]
 fwrite(d, file="../dan/imp_full.tsv", sep="\t")
+
+
+
 
 
