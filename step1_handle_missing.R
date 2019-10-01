@@ -14,12 +14,7 @@ for(i in 1:4){
   }
   print(i)
 }
-dr<-d[time >49,.(fold=unique(fold),
-		 class_label=unique(class_label), 
-		 r0=sum(R_VALUE==0)),by=fid]
-dr[r0 > 0][class_label==1]
 
-#summaryf <-mean
 d[,V1:=NULL]
 onames <- copy(names(d))
 setnames(d, old=onames, new=tolower(onames))
@@ -35,9 +30,6 @@ impvars <- melt(miss,
 		id.vars="fold",
 		variable.factor=FALSE)[variable!="class_label"][value > 0,unique(variable)]
 
-md<-melt(dat[,c("fold", "fid", impvars),with=F], measure.vars=impvars)
-msum<-md[,mean(is.na(value)),by=.(fold,fid,variable)]
-dat[,.(sum(xr_max==-99999)),by=.(fold,fid)][order(-V1)][V1==60][,uniqueN(fid)]
 
 imputeit<-function(dat, impvars){
 
@@ -69,17 +61,7 @@ rm(dd)
 
 missdt<-rbindlist(missdf)
 missdt<-dcast(missdt, fold + fid + id + time ~ var, value.var="val")
-
-missdt<-merge(missdt, d[,c(keys, "time", "class_label"),with=F],by=c(keys, "time"))
-missdt[,.(sum(class_label), mean(class_label),uniqueN(fid)),by=fold]
-print(xtable(rbindlist(list(
-       d[,.(sum(class_label), as.character(round(mean(class_label,na.rm=T),3)), uniqueN(fid)),by=fold],
-       d[,.(fold="overall", sum(class_label,na.rm=T), as.character(round(mean(class_label,na.rm=T),3)), uniqueN(fid))]
-))),include.rownames=F)
-
-
-
-d[,lapply(.SD, function(x) mean(is.na(x)))]
+fwrite(missdt, file="../dan/missing_imputed_medians.tsv",sep="\t")
 fwrite(d, file="../dan/imp_full.tsv", sep="\t")
 
 

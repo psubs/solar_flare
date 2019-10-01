@@ -24,11 +24,5 @@ di<-make_sumdt(dat[grp==i], grpvars, allcovs)
 
 fwrite(di, file=paste0("data/ssdat_window_",i),sep="\t")
 
-#for(i in 1:length(unique(dat[,grp]))){
-#  di<-make_sumdt(dat[grp==i], grpvars, allcovs)
-#  fwrite(di, file=paste0("../dan/data/ssdat_",i),sep="\t")
-#  print(i)
-#  rm(di)
-#  print(i / length(unique(dat[,grp])))
-#}
+
 

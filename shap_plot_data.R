@@ -1,8 +1,6 @@
 allcovs<-fread("ieee/allcovsbase.tsv")[,unlist(covs)]
 pat<-paste0(allcovs,collapse="|")
 
-
-
 global_shap<-function(shapdt, shapcols,abs=TRUE,byvars=NULL){
  
   if(abs){
