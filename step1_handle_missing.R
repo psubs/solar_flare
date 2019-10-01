@@ -14,6 +14,10 @@ for(i in 1:4){
   }
   print(i)
 }
+dr<-d[time >49,.(fold=unique(fold),
+		 class_label=unique(class_label), 
+		 r0=sum(R_VALUE==0)),by=fid]
+dr[r0 > 0][class_label==1]
 
 #summaryf <-mean
 d[,V1:=NULL]
@@ -31,6 +35,9 @@ impvars <- melt(miss,
 		id.vars="fold",
 		variable.factor=FALSE)[variable!="class_label"][value > 0,unique(variable)]
 
+md<-melt(dat[,c("fold", "fid", impvars),with=F], measure.vars=impvars)
+msum<-md[,mean(is.na(value)),by=.(fold,fid,variable)]
+dat[,.(sum(xr_max==-99999)),by=.(fold,fid)][order(-V1)][V1==60][,uniqueN(fid)]
 
 imputeit<-function(dat, impvars){
 

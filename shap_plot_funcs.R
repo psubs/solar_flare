@@ -70,11 +70,14 @@ me.shap.plot.summary <- function(dat,
       ggforce::geom_sina(aes(x = variable, 
 			     y = shap_name_tmp, 
 			     color = if(qval) qvalue else stdfvalue),
-                method = "counts", maxwidth = 0.7, alpha = 0.7) +
+                method = "counts", 
+		maxwidth = 0.7, 
+		size=0.01,
+		alpha = 0.7) +
       # print the mean absolute value:
       geom_text(data = unique(data_long[, c("variable", "global_name_tmp")]),
                 aes(x = variable, y=-Inf, label = sprintf(label_format, global_name_tmp)),
-                size = 3, alpha = 0.7,
+                size = 2.1, alpha = 0.7,
                 hjust = -0.2,
                 fontface = "bold") + # bold
       # # add a "SHAP" bar notation
@@ -88,7 +91,9 @@ me.shap.plot.summary <- function(dat,
       scale_color_gradientn(colours=cols,
                            breaks=c(0,.2,.8,1), #labels=c("Low","High "),
                            labels=c("0", "0.2", "0.8", "1"),
-                           guide = guide_colorbar(barwidth = 12, barheight = 0.3)) +
+                           guide = guide_colorbar(barwidth = 4, 
+						  barheight = 0.3,
+						  label.vjust=1)) + # barwidth=12
       theme_bw() +
       theme(axis.line.y = element_blank(),
             axis.ticks.y = element_blank(), # remove axis line
@@ -101,7 +106,9 @@ me.shap.plot.summary <- function(dat,
       # also relabel the feature using `label.feature`
       scale_x_discrete(limits = rev(levels(data_long$variable)),
                        labels =SHAPforxgboost:::label.feature(rev(levels(data_long$variable))))+
-      labs(y = "SHAP value (impact on log-odds of MSF)", x = "", color = if(qval) "Quantile Value\n of Feature" else "Feature value  ")
+      labs(y = "SHAP value (impact on log-odds of MSF)", 
+	   x = "", 
+	   color = if(qval) "Quantile Value\n of Feature" else "Feature value  ")
     
   
   } else {
@@ -114,11 +121,12 @@ me.shap.plot.summary <- function(dat,
 			     method = "counts", 
 			     maxwidth = 0.7, 
 			     alpha = 0.2,
+			     size=0.01,
 			     colour="#D95F02") +
       # print the mean absolute value:
       geom_text(data = unique(data_long[, c("variable", "global_name_tmp")]),
                 aes(x = variable, y=-Inf, label = sprintf(label_format, global_name_tmp)),
-                size = 3, alpha = 0.7,
+                size = 2.1, alpha = 0.7,
                 hjust = -0.2,
                 fontface = "bold") + # bold
       theme_bw() +
@@ -157,12 +165,15 @@ me.shap.plot.summary <- function(dat,
 #x<-"r_value_max_t10_5"
 #color_feature<-"epsx_min_t10_5"
 #me.dep.plot(plotd,x,color_feature,quantx=F)
+#dat<-copy(plotd)
+#x<-combos[i,as.character(xvar)]
+#color_feature<-combos[i,as.character(yvar)]
 me.dep.plot<-function(dat, x, color_feature,quantx=T){
   data_long<-copy(dat)
   x<-as.character(x)
   color_feature<-as.character(color_feature)
   y<-x
-  cast_vars=c("qvalue", "value", "rfvalue")
+  cast_vars=intersect(names(data_long),c("qvalue", "value", "rfvalue"))
   dilute = FALSE; smooth = TRUE; size0 = NULL; add_hist = FALSE
   scientific=T
   label_format<-function(x) if((x > 1e-3 && x < 10^3) || x==0){
@@ -173,7 +184,11 @@ me.dep.plot<-function(dat, x, color_feature,quantx=T){
   
   
   dw<-data_long[variable %in% c(y, x, color_feature)]
-  dw<-dcast(dw, fid + fold ~ variable, value.var=cast_vars)
+  if("hclust10" %in% names(data_long)){
+    dw<-dcast(dw, fid + fold + hclust10 ~ variable, value.var=cast_vars)
+  } else{
+    dw<-dcast(dw, fid + fold ~ variable, value.var=cast_vars)
+  }
   pvars<-unique(unlist(sapply(cast_vars, 
   			function(i) paste0(i, "_", c(x, y, color_feature)))))
   setnames(dw, old=paste0("rfvalue_", color_feature), new=paste0("rfvalue_cf"))
@@ -186,7 +201,7 @@ me.dep.plot<-function(dat, x, color_feature,quantx=T){
   if(quantx){
     labsv<-dw[,quantile(xtmp,c(0, 0.2, 0.5, 0.8, 1))]
     labsv<-sapply(labsv, label_format)#label_format(labs)
-    labsv<-paste0(labsv, "\n", "(", names(labs), ")")
+    labsv<-paste0(labsv, "\n", "(", names(labsv), ")")
   } 
  # else{
  #   labsv<-dw[,quantile(xtmp,c(0, 0.2, 0.5, 0.8, 1))]

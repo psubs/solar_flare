@@ -58,6 +58,25 @@ for(i in 1:nrow(tg)){
 }
 
 ## Select best tune and fit final model.
+f1sumf<-out[tgind==14,.(tgind=unique(tgind),
+	      f1=f1(flare,obs,0.35),
+	      tss=tss(flare, obs, 0.35),
+	      gs=gs(flare, obs, 0.35),
+	      prec=prec(flare, obs, 0.35),
+	      rec=rec(flare, obs, 0.35)),
+		 	 by=fold]#[order(-f1)]
+
+f1sumo<-out[tgind==14,.(tgind=unique(tgind),
+	      f1=f1(flare,obs,0.35),
+	      tss=tss(flare, obs, 0.35),
+	      gs=gs(flare, obs, 0.35),
+	      prec=prec(flare, obs, 0.35),
+	      rec=rec(flare, obs, 0.35))]#[order(-f1)]
+f1sum<-rbindlist(list(f1sumf, f1sumo),
+		 use.names=T,fill=T)[,lapply(.SD, function(x) 
+			      as.character(round(x,3)))][,-c("tgind"),with=F]
+print(xtable(f1sum),include.rownames=F)
+
 f1sum<-out[,.(tgind=unique(tgind),
 	      f1=f1(flare,obs,0.35),
 	      tss=tss(flare, obs, 0.35),
@@ -65,7 +84,6 @@ f1sum<-out[,.(tgind=unique(tgind),
 	      prec=prec(flare, obs, 0.35),
 	      rec=rec(flare, obs, 0.35)),
 		 	 by=c(tunepars)]#[order(-f1)]
-
 
 tgbst<-f1sum[max_depth < 8][1,tgind]
 
